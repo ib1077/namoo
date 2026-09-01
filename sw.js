@@ -1,4 +1,4 @@
-const CACHE_NAME = "ehon-pwa-v1";
+const CACHE_NAME = "ehon-pwa-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,9 +10,7 @@ const APP_SHELL = [
   "./icons/icon.svg",
   "./icons/maskable.svg",
   "./icons/apple-touch-icon.svg",
-  "./images/01.svg",
-  "./images/02.svg",
-  "./images/03.svg"
+  "./images/01.jpg"
 ];
 
 self.addEventListener("install", event => {

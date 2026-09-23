@@ -1,7 +1,18 @@
 {
-  "pages": [
-    { "image": "./images/01.svg", "text": "こっそり、こっそり。なにが はじまるのかな。" },
-    { "image": "./images/02.svg", "text": "だっ、だっ、だっ。げんきに すすもう。" },
-    { "image": "./images/03.svg", "text": "だぁー！ また さいしょから はじまるよ。" }
-  ]
+  "modes": {
+    "station": {
+      "title": "駅IC案内用サイネージ",
+      "pages": [
+        { "image": "./images/ic-voice.png", "speech": "交通系ICカードをタッチしてください。智頭線内では、交通系ICカードはご利用になれません。", "durationMs": 15000 },
+        { "image": "./images/ic-guide-01.png", "speech": "", "durationMs": 7000 },
+        { "image": "./images/ic-guide-02.png", "speech": "", "durationMs": 7000 }
+      ]
+    },
+    "dadada": {
+      "title": "だっだぁー",
+      "pages": [
+        { "image": "./images/dadada.jpg", "speech": "だっだぁー。だらっ、だらぁーー。だっだぁー。", "durationMs": 5000 }
+      ]
+    }
+  }
 }

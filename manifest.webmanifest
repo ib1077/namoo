@@ -1,14 +1,14 @@
 {
-  "name": "こっそりだっだぁー 3枚版",
-  "short_name": "だっだぁー",
-  "description": "3枚を自動で読み上げるデジタルサイネージ",
+  "name": "駅IC案内用サイネージ",
+  "short_name": "駅IC案内",
+  "description": "智頭急行線のICカード利用案内デジタルサイネージ",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#101827",
-  "theme_color": "#101827",
+  "background_color": "#07182a",
+  "theme_color": "#00589b",
   "icons": [
     { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "./icons/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

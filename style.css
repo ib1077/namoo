@@ -1,78 +1,30 @@
-:root {
-  font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
-  color: #fff;
-  background: #101827;
-  touch-action: manipulation;
-}
-
+:root { font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", system-ui, sans-serif; color: #062d52; background: #eef7ff; touch-action: manipulation; }
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-body { background: #101827; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; background: #07182a; }
 button { font: inherit; }
 
-.signage { position: relative; width: 100%; height: 100%; background: #101827; }
-.signage[hidden], .overlay[hidden] { display: none; }
-#slide-image { width: 100%; height: 100%; object-fit: contain; display: block; }
+.reader { position: relative; width: 100%; height: 100%; display: grid; place-items: center; background: #07182a; }
+.reader[hidden], .start-screen[hidden], .resume-screen[hidden] { display: none; }
+#page-image { width: 100%; height: 100%; object-fit: contain; display: block; }
+.page-number { position: absolute; right: max(.8rem, env(safe-area-inset-right)); bottom: max(.6rem, env(safe-area-inset-bottom)); padding: .35rem .7rem; border-radius: 999px; color: #fff; background: rgba(0,0,0,.45); font-size: .85rem; }
 
-.text-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 1.1rem max(4rem, env(safe-area-inset-right)) max(1.2rem, env(safe-area-inset-bottom)) max(1.2rem, env(safe-area-inset-left));
-  background: linear-gradient(transparent, rgba(5, 9, 18, .94) 24%);
-  text-shadow: 0 2px 8px #000;
-}
+.start-screen { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(3.7rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: linear-gradient(145deg, #eff8ff, #fff 52%, #dcefff); }
+.start-screen::before { content: ""; position: absolute; inset: 0 0 auto; height: clamp(.65rem, 2vw, 1.1rem); background: linear-gradient(90deg, #00589b 0 66%, #008b54 66%); }
+.start-card { width: min(92vw, 34rem); padding: clamp(1.5rem, 4vw, 2.4rem); text-align: center; background: rgba(255,255,255,.92); border: 1px solid #b9d8ef; border-radius: 1.4rem; box-shadow: 0 20px 55px rgba(0,67,119,.16); }
+.start-icon { width: 6.2rem; height: 6.2rem; }
+.eyebrow { margin: .5rem 0 .2rem; color: #147444; font-size: 1rem; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0; color: #00589b; font-size: clamp(2.15rem, 8vw, 4.2rem); line-height: 1.1; letter-spacing: .03em; }
+#status { min-height: 1.5em; margin: 1rem 0 1.35rem; font-size: 1rem; }
+.start-button, #resume-button { width: 100%; min-height: 5.2rem; border: 0; border-radius: .8rem; color: #fff; background: #0068ad; box-shadow: 0 6px 0 #004b7d; font-size: clamp(1.45rem, 5vw, 2rem); font-weight: 800; cursor: pointer; }
+.start-button:disabled, .secret-entry:disabled { opacity: .45; cursor: wait; }
+.start-button:active, #resume-button:active { transform: translateY(3px); box-shadow: 0 3px 0 #004b7d; }
+.hint { margin: 1.1rem 0 0; color: #52718c; font-size: .86rem; }
+.secret-entry { position: absolute; left: 50%; bottom: max(.8rem, env(safe-area-inset-bottom)); transform: translateX(-50%); border: 0; padding: .35rem .65rem; color: #7890a3; background: transparent; font-size: .72rem; opacity: .65; cursor: pointer; }
+.secret-entry:focus-visible { outline: 2px solid #00589b; border-radius: .3rem; opacity: 1; }
 
-#slide-text { max-width: 70rem; margin: 1.6rem auto 0; font-size: clamp(1.5rem, 4.4vw, 3.8rem); line-height: 1.45; font-weight: 800; text-align: center; }
-#slide-counter { position: absolute; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); font-size: .9rem; opacity: .7; }
-
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  padding: max(1.2rem, env(safe-area-inset-top)) max(1.2rem, env(safe-area-inset-right)) max(1.2rem, env(safe-area-inset-bottom)) max(1.2rem, env(safe-area-inset-left));
-  background: radial-gradient(circle at 50% 20%, #263b65, #101827 68%);
-}
-
-.card { width: min(92vw, 34rem); text-align: center; }
-.logo { width: min(30vw, 8rem); height: auto; }
-h1 { margin: .3rem 0; font-size: clamp(2.5rem, 10vw, 5.2rem); line-height: 1.05; letter-spacing: .04em; }
-#status { min-height: 1.6em; margin: 1rem 0 1.3rem; font-size: 1.05rem; }
-
-#start-button, #resume-button {
-  width: min(100%, 30rem);
-  min-height: 5.5rem;
-  padding: 1rem 1.5rem;
-  border: 0;
-  border-radius: 999px;
-  color: #101827;
-  background: #ffd55c;
-  box-shadow: 0 8px 0 #c89713;
-  font-size: clamp(1.6rem, 5vw, 2.5rem);
-  font-weight: 900;
-  cursor: pointer;
-}
-
-#start-button:disabled { opacity: .45; cursor: wait; }
-#start-button:active, #resume-button:active { transform: translateY(4px); box-shadow: 0 4px 0 #c89713; }
-small { display: block; margin-top: 1.4rem; opacity: .7; font-size: .9rem; }
-
-.pause {
-  position: fixed;
-  z-index: 5;
-  top: max(.75rem, env(safe-area-inset-top));
-  right: max(.75rem, env(safe-area-inset-right));
-  width: 3.2rem;
-  height: 3.2rem;
-  border: 2px solid rgba(255,255,255,.55);
-  border-radius: 50%;
-  color: #fff;
-  background: rgba(0,0,0,.35);
-  font-size: 1.15rem;
-}
-
-.resume { background: rgba(5, 9, 18, .86); }
-@media (prefers-reduced-motion: no-preference) { #slide-image { animation: fade .4s ease-out; } @keyframes fade { from { opacity: .15; } to { opacity: 1; } } }
+.corner-button { position: fixed; z-index: 5; top: max(.75rem, env(safe-area-inset-top)); right: max(.75rem, env(safe-area-inset-right)); width: 3.1rem; height: 3.1rem; border: 2px solid rgba(255,255,255,.7); border-radius: 50%; color: #fff; background: rgba(0,0,0,.38); font-size: 1.1rem; }
+.resume-screen { position: fixed; inset: 0; z-index: 20; display: grid; align-content: center; gap: 1rem; padding: 1.5rem; background: rgba(4,18,32,.88); }
+.resume-screen button { width: min(100%, 28rem); margin: 0 auto; min-height: 4.8rem; border-radius: .8rem; font-weight: 800; }
+#home-button { border: 2px solid #fff; color: #fff; background: transparent; font-size: 1rem; }
+@media (prefers-reduced-motion: no-preference) { #page-image { animation: fade .32s ease-out; } @keyframes fade { from { opacity: .2 } to { opacity: 1 } } }

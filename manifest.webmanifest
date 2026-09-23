@@ -1,14 +1,14 @@
 {
-  "name": "おはなしえほん",
-  "short_name": "えほん",
-  "description": "読み上げと自動ページ送りに対応した絵本PWA",
+  "name": "こっそりだっだぁー 3枚版",
+  "short_name": "だっだぁー",
+  "description": "3枚を自動で読み上げるデジタルサイネージ",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#fff4d6",
-  "theme_color": "#fff4d6",
+  "background_color": "#101827",
+  "theme_color": "#101827",
   "icons": [
     { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "./icons/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

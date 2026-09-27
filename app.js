@@ -8,6 +8,7 @@ const ui = {
 };
 
 let modes = {}; let pages = []; let currentMode = "station"; let currentPage = 0; let playing = false; let wakeLock = null; let timer = null; let runId = 0;
+let touchStartX = 0; let touchStartY = 0; let touchStartedAt = 0;
 
 async function loadBook() {
   const response = await fetch(SETTINGS.bookJson, { cache: "no-cache" });
@@ -70,6 +71,16 @@ function stop(showResume = true) {
   if (wakeLock) wakeLock.release().catch(() => {}); if (showResume) ui.resumeScreen.hidden = false;
 }
 
+function movePage(direction) {
+  if (!playing || pages.length < 2) return;
+  runId += 1;
+  speechSynthesis.cancel();
+  if (timer) clearTimeout(timer);
+  timer = null;
+  currentPage = (currentPage + direction + pages.length) % pages.length;
+  playPage(runId);
+}
+
 async function start(mode, resetPage = true) {
   currentMode = mode; pages = modes[mode].pages; if (resetPage) currentPage = 0;
   speechSynthesis.cancel(); playing = true; runId += 1; const token = runId;
@@ -86,6 +97,23 @@ ui.dadadaButton.addEventListener("click", () => start("dadada"));
 ui.pauseButton.addEventListener("click", () => stop(true));
 ui.resumeButton.addEventListener("click", () => start(currentMode, false));
 ui.homeButton.addEventListener("click", returnHome);
+
+ui.reader.addEventListener("touchstart", event => {
+  if (event.touches.length !== 1) return;
+  touchStartX = event.touches[0].clientX;
+  touchStartY = event.touches[0].clientY;
+  touchStartedAt = Date.now();
+}, { passive: true });
+
+ui.reader.addEventListener("touchend", event => {
+  if (!touchStartedAt || event.changedTouches.length !== 1) return;
+  const deltaX = event.changedTouches[0].clientX - touchStartX;
+  const deltaY = event.changedTouches[0].clientY - touchStartY;
+  const elapsed = Date.now() - touchStartedAt;
+  touchStartedAt = 0;
+  if (elapsed > 900 || Math.abs(deltaX) < 52 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+  movePage(deltaX < 0 ? 1 : -1);
+}, { passive: true });
 
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState === "visible" && playing) { await requestWakeLock(); speechSynthesis.cancel(); runId += 1; playPage(runId); }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "station-signage-v8";
+const CACHE_NAME = "station-signage-v9";
 const APP_SHELL = [
   "./", "./index.html", "./style.css", "./app.js", "./book.json", "./manifest.webmanifest",
   "./icons/icon.svg", "./icons/maskable.svg", "./icons/apple-touch-icon.svg",

@@ -39,6 +39,15 @@ let timer = null;
 let wakeLock = null;
 let importedUrls = [];
 let speechPrimed = false;
+const pendingWaits = new Set();
+
+function cancelPage() {
+  runId += 1;
+  for (const finish of [...pendingWaits]) finish();
+  if (timer) clearTimeout(timer);
+  timer = null;
+  window.speechSynthesis?.cancel?.();
+}
 
 function primeSpeechFromUserGesture() {
   if (!("speechSynthesis" in window) || speechPrimed) return;
@@ -142,9 +151,15 @@ function waitForImage(src) {
       if (finished) return;
       finished = true;
       clearTimeout(timeout);
+      pendingWaits.delete(done);
+      if (ui.mainImage.onload === done) {
+        ui.mainImage.onload = null;
+        ui.mainImage.onerror = null;
+      }
       resolve();
     };
     const timeout = setTimeout(done, SETTINGS.imageTimeoutMs);
+    pendingWaits.add(done);
     ui.mainImage.onload = done;
     ui.mainImage.onerror = done;
     ui.mainImage.src = src;
@@ -169,8 +184,15 @@ function speak(text, token) {
     u.volume = SETTINGS.volume;
     const voice = getJapaneseVoice();
     if (voice) u.voice = voice;
-    u.onend = resolve;
-    u.onerror = resolve;
+    const done = () => {
+      pendingWaits.delete(done);
+      u.onend = null;
+      u.onerror = null;
+      resolve();
+    };
+    pendingWaits.add(done);
+    u.onend = done;
+    u.onerror = done;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
   });
@@ -178,10 +200,14 @@ function speak(text, token) {
 
 function wait(ms, token) {
   return new Promise(resolve => {
-    timer = setTimeout(() => {
+    const done = () => {
+      clearTimeout(timer);
       timer = null;
+      pendingWaits.delete(done);
       resolve(playing && token === runId);
-    }, ms);
+    };
+    pendingWaits.add(done);
+    timer = setTimeout(done, ms);
   });
 }
 
@@ -189,6 +215,10 @@ function renderDots() {
   ui.pageDots.innerHTML = "";
   if (pages.length <= 1) { ui.pageDots.hidden = true; return; }
   ui.pageDots.hidden = false;
+  if (ui.viewer.dataset.mode === "story" || pages.length > 12) {
+    ui.pageDots.textContent = `${currentPage + 1} / ${pages.length}`;
+    return;
+  }
   pages.forEach((_, i) => {
     const dot = document.createElement("i");
     if (i === currentPage) dot.className = "active";
@@ -205,6 +235,8 @@ function updatePeeks() {
   const next = (currentPage + 1) % pages.length;
   ui.prevThumb.src = pages[prev].image;
   ui.nextThumb.src = pages[next].image;
+  ui.prevBtn.setAttribute("aria-label", `前のページ（${prev + 1} / ${pages.length}）`);
+  ui.nextBtn.setAttribute("aria-label", `次のページ（${next + 1} / ${pages.length}）`);
 }
 
 async function showPage(index, token, autoAdvance = true) {
@@ -245,26 +277,23 @@ async function requestWakeLock() {
   } catch (_) {}
 }
 
-async function startViewer(newPages) {
+async function startViewer(newPages, mode = "story") {
   if (!newPages.length) throw new Error("表示するページがありません");
+  cancelPage();
+  const token = runId;
+  ui.viewer.dataset.mode = mode;
   pages = newPages;
   currentPage = 0;
   playing = true;
-  runId += 1;
-  if (timer) clearTimeout(timer);
-  speechSynthesis?.cancel?.();
   ui.menu.hidden = true;
   ui.viewer.hidden = false;
   await requestWakeLock();
-  showPage(0, runId, true);
+  showPage(0, token, true);
 }
 
 function stopViewer() {
   playing = false;
-  runId += 1;
-  if (timer) clearTimeout(timer);
-  timer = null;
-  speechSynthesis?.cancel?.();
+  cancelPage();
   wakeLock?.release?.().catch(() => {});
   wakeLock = null;
   ui.viewer.hidden = true;
@@ -277,7 +306,7 @@ async function openBuiltin(kind) {
   try {
     ui.menuStatus.textContent = "読み込み中…";
     const newPages = await loadJson(BUILTIN[kind]);
-    await startViewer(newPages);
+    await startViewer(newPages, kind);
   } catch (e) {
     ui.menuStatus.textContent = e.message;
   }
@@ -305,16 +334,12 @@ ui.folderInput.addEventListener("change", async () => {
 ui.homeBtn.addEventListener("click", stopViewer);
 ui.prevBtn.addEventListener("click", () => {
   if (!playing) return;
-  runId += 1;
-  if (timer) clearTimeout(timer);
-  speechSynthesis?.cancel?.();
+  cancelPage();
   showPage(currentPage - 1, runId, true);
 });
 ui.nextBtn.addEventListener("click", () => {
   if (!playing) return;
-  runId += 1;
-  if (timer) clearTimeout(timer);
-  speechSynthesis?.cancel?.();
+  cancelPage();
   showPage(currentPage + 1, runId, true);
 });
 

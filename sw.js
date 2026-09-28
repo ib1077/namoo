@@ -1,4 +1,4 @@
-const CACHE_NAME = "ehon-signage-v8";
+const CACHE_NAME = "ehon-signage-v10";
 const APP_SHELL = [
   "./", "./index.html", "./style.css", "./app.js", "./manifest.webmanifest",
   "./data/station.json", "./data/dadada.json",
@@ -7,7 +7,18 @@ const APP_SHELL = [
   "./images/dadada/01.jpg"
 ];
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    // 内蔵絵本に追加したページも初回インストールで保存する。
+    for (const path of ["./data/station.json", "./data/dadada.json"]) {
+      const response = await cache.match(path);
+      const data = await response.json();
+      const pages = data.pages || data;
+      const images = pages.map(page => page.image).filter(Boolean);
+      await cache.addAll([...new Set(images)]);
+    }
+  })());
   self.skipWaiting();
 });
 self.addEventListener("activate", event => {
@@ -24,3 +35,4 @@ self.addEventListener("fetch", event => {
     }).catch(() => caches.match(event.request).then(r => r || caches.match("./index.html")))
   );
 });
+

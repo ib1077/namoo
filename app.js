@@ -1,124 +1,329 @@
 "use strict";
 
-const SETTINGS = { bookJson: "./book.json", language: "ja-JP", rate: 0.82, pitch: 1.05, volume: 1, defaultDurationMs: 7000, imageTimeoutMs: 8000 };
-const ui = {
-  reader: document.querySelector("#reader"), image: document.querySelector("#page-image"), number: document.querySelector("#page-number"),
-  startScreen: document.querySelector("#start-screen"), stationButton: document.querySelector("#station-button"), dadadaButton: document.querySelector("#dadada-button"), status: document.querySelector("#status"),
-  pauseButton: document.querySelector("#pause-button"), resumeScreen: document.querySelector("#resume-screen"), resumeButton: document.querySelector("#resume-button"), homeButton: document.querySelector("#home-button")
+const BUILTIN = {
+  station: "./data/station.json",
+  story: "./data/dadada.json"
 };
 
-let modes = {}; let pages = []; let currentMode = "station"; let currentPage = 0; let playing = false; let wakeLock = null; let timer = null; let runId = 0;
-let touchStartX = 0; let touchStartY = 0; let touchStartedAt = 0;
+const SETTINGS = {
+  language: "ja-JP",
+  rate: 0.82,
+  pitch: 1.05,
+  volume: 1,
+  silentPageWhenSpeechModeMs: 5000,
+  imageTimeoutMs: 8000
+};
 
-async function loadBook() {
-  const response = await fetch(SETTINGS.bookJson, { cache: "no-cache" });
-  if (!response.ok) throw new Error("案内データを読み込めませんでした");
+const ui = {
+  menu: document.querySelector("#menu"),
+  viewer: document.querySelector("#viewer"),
+  stationBtn: document.querySelector("#stationBtn"),
+  storyBtn: document.querySelector("#storyBtn"),
+  folderBtn: document.querySelector("#folderBtn"),
+  folderInput: document.querySelector("#folderInput"),
+  menuStatus: document.querySelector("#menuStatus"),
+  homeBtn: document.querySelector("#homeBtn"),
+  mainImage: document.querySelector("#mainImage"),
+  prevBtn: document.querySelector("#prevBtn"),
+  nextBtn: document.querySelector("#nextBtn"),
+  prevThumb: document.querySelector("#prevThumb"),
+  nextThumb: document.querySelector("#nextThumb"),
+  pageDots: document.querySelector("#pageDots")
+};
+
+let pages = [];
+let currentPage = 0;
+let playing = false;
+let runId = 0;
+let timer = null;
+let wakeLock = null;
+let importedUrls = [];
+let speechPrimed = false;
+
+function primeSpeechFromUserGesture() {
+  if (!("speechSynthesis" in window) || speechPrimed) return;
+  try {
+    // iPhone/Safari対策：ユーザーのタップ処理の中でSpeechSynthesisへ一度触れる。
+    const u = new SpeechSynthesisUtterance(" ");
+    u.lang = SETTINGS.language;
+    u.volume = 0;
+    u.rate = 10;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    speechPrimed = true;
+  } catch (_) {}
+}
+
+function selectedTiming() {
+  return document.querySelector('input[name="timing"]:checked')?.value || "10000";
+}
+
+async function loadJson(url) {
+  const response = await fetch(url, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`${url} を読み込めません`);
   const data = await response.json();
-  for (const [id, mode] of Object.entries(data.modes || {})) {
-    modes[id] = { title: String(mode.title || id), pages: (mode.pages || []).map(page => ({ image: String(page.image || "").trim(), speech: String(page.speech || "").trim(), durationMs: Number(page.durationMs || 0) })).filter(page => page.image) };
+  return normalizePages(data.pages || data);
+}
+
+function normalizePages(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .map(p => ({
+      image: String(p.image || "").trim(),
+      speech: String(p.speech ?? p.text ?? "").trim()
+    }))
+    .filter(p => p.image);
+}
+
+function clearImportedUrls() {
+  importedUrls.forEach(url => URL.revokeObjectURL(url));
+  importedUrls = [];
+}
+
+function basename(path) {
+  return String(path || "").replace(/\\/g, "/").split("/").pop();
+}
+
+function parseTxt(text) {
+  return text.split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(s => s && !s.startsWith("#"))
+    .map(line => {
+      const pos = line.indexOf("|");
+      return pos < 0 ? null : {
+        image: line.slice(0, pos).trim(),
+        speech: line.slice(pos + 1).trim()
+      };
+    }).filter(Boolean);
+}
+
+async function importFolder(fileList) {
+  clearImportedUrls();
+  const files = Array.from(fileList || []);
+  if (!files.length) throw new Error("ファイルが選択されていません");
+
+  const byName = new Map();
+  const imageFiles = files.filter(f => f.type.startsWith("image/"));
+  for (const f of imageFiles) {
+    const url = URL.createObjectURL(f);
+    importedUrls.push(url);
+    byName.set(f.name, url);
+    byName.set(f.webkitRelativePath || f.name, url);
+    byName.set(basename(f.webkitRelativePath || f.name), url);
   }
-  if (!modes.station || modes.station.pages.length !== 3 || !modes.dadada?.pages.length) throw new Error("案内データの構成を確認してください");
+
+  let rawPages = [];
+  const jsonFile = files.find(f => f.name.toLowerCase() === "book.json");
+  const txtFile = files.find(f => f.name.toLowerCase() === "book.txt");
+
+  if (jsonFile) {
+    const data = JSON.parse(await jsonFile.text());
+    rawPages = normalizePages(data.pages || data);
+  } else if (txtFile) {
+    rawPages = parseTxt(await txtFile.text());
+  } else {
+    rawPages = imageFiles
+      .sort((a,b) => a.name.localeCompare(b.name, "ja", { numeric: true }))
+      .map(f => ({ image: f.name, speech: "" }));
+  }
+
+  const resolved = rawPages.map(p => ({
+    image: byName.get(p.image) || byName.get(basename(p.image)) || p.image,
+    speech: p.speech || ""
+  })).filter(p => p.image);
+
+  if (!resolved.length) throw new Error("表示できる画像がありません");
+  return resolved;
 }
 
 function waitForImage(src) {
   return new Promise(resolve => {
-    let doneAlready = false;
-    const done = () => { if (!doneAlready) { doneAlready = true; clearTimeout(timeout); resolve(); } };
-    const timeout = window.setTimeout(done, SETTINGS.imageTimeoutMs);
-    ui.image.onload = done; ui.image.onerror = done; ui.image.src = src; if (ui.image.complete) done();
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      resolve();
+    };
+    const timeout = setTimeout(done, SETTINGS.imageTimeoutMs);
+    ui.mainImage.onload = done;
+    ui.mainImage.onerror = done;
+    ui.mainImage.src = src;
+    if (ui.mainImage.complete) done();
   });
 }
 
 function getJapaneseVoice() {
   const voices = speechSynthesis.getVoices();
-  return voices.find(v => v.lang.toLowerCase() === "ja-jp") || voices.find(v => v.lang.toLowerCase().startsWith("ja")) || null;
+  return voices.find(v => v.lang.toLowerCase() === "ja-jp")
+    || voices.find(v => v.lang.toLowerCase().startsWith("ja"))
+    || null;
 }
 
 function speak(text, token) {
   return new Promise(resolve => {
-    if (!playing || token !== runId || !text) return resolve();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = SETTINGS.language; utterance.rate = SETTINGS.rate; utterance.pitch = SETTINGS.pitch; utterance.volume = SETTINGS.volume;
-    const voice = getJapaneseVoice(); if (voice) utterance.voice = voice;
-    utterance.onend = resolve; utterance.onerror = resolve; speechSynthesis.cancel(); speechSynthesis.speak(utterance);
+    if (!text || !playing || token !== runId || !("speechSynthesis" in window)) return resolve();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = SETTINGS.language;
+    u.rate = SETTINGS.rate;
+    u.pitch = SETTINGS.pitch;
+    u.volume = SETTINGS.volume;
+    const voice = getJapaneseVoice();
+    if (voice) u.voice = voice;
+    u.onend = resolve;
+    u.onerror = resolve;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
   });
 }
 
-function delay(ms, token) { return new Promise(resolve => { timer = window.setTimeout(() => { timer = null; resolve(token === runId); }, ms); }); }
+function wait(ms, token) {
+  return new Promise(resolve => {
+    timer = setTimeout(() => {
+      timer = null;
+      resolve(playing && token === runId);
+    }, ms);
+  });
+}
 
-async function playPage(token) {
-  if (!playing || token !== runId) return;
+function renderDots() {
+  ui.pageDots.innerHTML = "";
+  if (pages.length <= 1) { ui.pageDots.hidden = true; return; }
+  ui.pageDots.hidden = false;
+  pages.forEach((_, i) => {
+    const dot = document.createElement("i");
+    if (i === currentPage) dot.className = "active";
+    ui.pageDots.appendChild(dot);
+  });
+}
+
+function updatePeeks() {
+  const show = pages.length > 1;
+  ui.prevBtn.hidden = !show;
+  ui.nextBtn.hidden = !show;
+  if (!show) return;
+  const prev = (currentPage - 1 + pages.length) % pages.length;
+  const next = (currentPage + 1) % pages.length;
+  ui.prevThumb.src = pages[prev].image;
+  ui.nextThumb.src = pages[next].image;
+}
+
+async function showPage(index, token, autoAdvance = true) {
+  if (!playing || token !== runId || !pages.length) return;
+  currentPage = (index + pages.length) % pages.length;
+  renderDots();
+  updatePeeks();
   const page = pages[currentPage];
-  ui.number.textContent = currentMode === "station" ? `${currentPage + 1} / 3` : "";
-  ui.image.alt = currentMode === "station" ? `駅IC案内 ${currentPage + 1}枚目` : "だっだぁー";
   await waitForImage(page.image);
   if (!playing || token !== runId) return;
+
+  const timing = selectedTiming();
+  const start = performance.now();
   if (page.speech) await speak(page.speech, token);
+  if (!playing || token !== runId || !autoAdvance) return;
+
+  let remain = 0;
+  if (timing === "speech") {
+    remain = page.speech ? 0 : SETTINGS.silentPageWhenSpeechModeMs;
+  } else {
+    const target = Number(timing);
+    remain = Math.max(0, target - (performance.now() - start));
+  }
+
+  if (remain > 0) {
+    const ok = await wait(remain, token);
+    if (!ok) return;
+  }
   if (!playing || token !== runId) return;
-  const ok = await delay(page.durationMs || SETTINGS.defaultDurationMs, token);
-  if (!ok || !playing) return;
-  currentPage = (currentPage + 1) % pages.length;
-  playPage(token);
+  showPage(currentPage + 1, token, true);
 }
 
 async function requestWakeLock() {
   if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
-  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } catch (error) { console.info("Wake Lockは利用できません", error.name); }
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+  } catch (_) {}
 }
 
-function stop(showResume = true) {
-  playing = false; runId += 1; speechSynthesis.cancel(); if (timer) clearTimeout(timer); timer = null;
-  if (wakeLock) wakeLock.release().catch(() => {}); if (showResume) ui.resumeScreen.hidden = false;
-}
-
-function movePage(direction) {
-  if (!playing || pages.length < 2) return;
+async function startViewer(newPages) {
+  if (!newPages.length) throw new Error("表示するページがありません");
+  pages = newPages;
+  currentPage = 0;
+  playing = true;
   runId += 1;
-  speechSynthesis.cancel();
+  if (timer) clearTimeout(timer);
+  speechSynthesis?.cancel?.();
+  ui.menu.hidden = true;
+  ui.viewer.hidden = false;
+  await requestWakeLock();
+  showPage(0, runId, true);
+}
+
+function stopViewer() {
+  playing = false;
+  runId += 1;
   if (timer) clearTimeout(timer);
   timer = null;
-  currentPage = (currentPage + direction + pages.length) % pages.length;
-  playPage(runId);
+  speechSynthesis?.cancel?.();
+  wakeLock?.release?.().catch(() => {});
+  wakeLock = null;
+  ui.viewer.hidden = true;
+  ui.menu.hidden = false;
+  ui.menuStatus.textContent = "モードを選んでください。";
 }
 
-async function start(mode, resetPage = true) {
-  currentMode = mode; pages = modes[mode].pages; if (resetPage) currentPage = 0;
-  speechSynthesis.cancel(); playing = true; runId += 1; const token = runId;
-  ui.startScreen.hidden = true; ui.resumeScreen.hidden = true; ui.reader.hidden = false; ui.pauseButton.hidden = false;
-  await requestWakeLock(); playPage(token);
+async function openBuiltin(kind) {
+  primeSpeechFromUserGesture();
+  try {
+    ui.menuStatus.textContent = "読み込み中…";
+    const newPages = await loadJson(BUILTIN[kind]);
+    await startViewer(newPages);
+  } catch (e) {
+    ui.menuStatus.textContent = e.message;
+  }
 }
 
-function returnHome() {
-  stop(false); ui.resumeScreen.hidden = true; ui.reader.hidden = true; ui.pauseButton.hidden = true; ui.startScreen.hidden = false; currentPage = 0;
-}
+ui.stationBtn.addEventListener("click", () => openBuiltin("station"));
+ui.storyBtn.addEventListener("click", () => openBuiltin("story"));
+ui.folderBtn.addEventListener("click", () => {
+  primeSpeechFromUserGesture();
+  ui.folderInput.click();
+});
 
-ui.stationButton.addEventListener("click", () => start("station"));
-ui.dadadaButton.addEventListener("click", () => start("dadada"));
-ui.pauseButton.addEventListener("click", () => stop(true));
-ui.resumeButton.addEventListener("click", () => start(currentMode, false));
-ui.homeButton.addEventListener("click", returnHome);
+ui.folderInput.addEventListener("change", async () => {
+  try {
+    ui.menuStatus.textContent = "フォルダを読み込み中…";
+    const imported = await importFolder(ui.folderInput.files);
+    await startViewer(imported);
+  } catch (e) {
+    ui.menuStatus.textContent = e.message;
+  } finally {
+    ui.folderInput.value = "";
+  }
+});
 
-ui.reader.addEventListener("touchstart", event => {
-  if (event.touches.length !== 1) return;
-  touchStartX = event.touches[0].clientX;
-  touchStartY = event.touches[0].clientY;
-  touchStartedAt = Date.now();
-}, { passive: true });
-
-ui.reader.addEventListener("touchend", event => {
-  if (!touchStartedAt || event.changedTouches.length !== 1) return;
-  const deltaX = event.changedTouches[0].clientX - touchStartX;
-  const deltaY = event.changedTouches[0].clientY - touchStartY;
-  const elapsed = Date.now() - touchStartedAt;
-  touchStartedAt = 0;
-  if (elapsed > 900 || Math.abs(deltaX) < 52 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
-  movePage(deltaX < 0 ? 1 : -1);
-}, { passive: true });
+ui.homeBtn.addEventListener("click", stopViewer);
+ui.prevBtn.addEventListener("click", () => {
+  if (!playing) return;
+  runId += 1;
+  if (timer) clearTimeout(timer);
+  speechSynthesis?.cancel?.();
+  showPage(currentPage - 1, runId, true);
+});
+ui.nextBtn.addEventListener("click", () => {
+  if (!playing) return;
+  runId += 1;
+  if (timer) clearTimeout(timer);
+  speechSynthesis?.cancel?.();
+  showPage(currentPage + 1, runId, true);
+});
 
 document.addEventListener("visibilitychange", async () => {
-  if (document.visibilityState === "visible" && playing) { await requestWakeLock(); speechSynthesis.cancel(); runId += 1; playPage(runId); }
+  if (document.visibilityState === "visible" && playing) {
+    await requestWakeLock();
+  }
 });
-window.addEventListener("pagehide", () => stop(false));
-if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.warn));
 
-loadBook().then(() => { ui.status.textContent = "3枚の案内を繰り返し表示します"; ui.stationButton.disabled = false; ui.dadadaButton.disabled = false; }).catch(error => { ui.status.textContent = error.message; ui.status.setAttribute("role", "alert"); });
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}

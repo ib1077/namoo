@@ -1,14 +1,11 @@
 {
-  "name": "駅IC案内用サイネージ",
-  "short_name": "駅IC案内",
-  "description": "智頭急行線のICカード利用案内デジタルサイネージ",
-  "lang": "ja",
+  "name": "案内サイネージ・おはなし絵本",
+  "short_name": "案内・絵本",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#07182a",
-  "theme_color": "#00589b",
+  "background_color": "#f4efe4",
+  "theme_color": "#fff4d6",
   "icons": [
     { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "./icons/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

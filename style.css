@@ -80,3 +80,14 @@ button { font: inherit; }
 @media (orientation: portrait) {
   .peek { width: 24vw; height: 17vw; }
 }
+
+/* 独立PWAのホーム */
+.menu-card { width: min(92vw, 600px); }
+h1 { font-size: clamp(1.5rem, 5vw, 2rem); margin: 0 0 20px; }
+.content-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; max-height:36vh; overflow:auto; }
+.content-button { min-height:76px; padding:14px; font-weight:700; color:#71866b; }
+.content-button:disabled { opacity:.5; cursor:default; }
+.folder-entry { border-top:1px solid #bbc3c5; margin-top:18px; }
+.mode-folder { min-height:48px; margin-top:12px; }
+.timing-box { margin-top:16px; }
+.menu-screen { background:#f4f1e6; }

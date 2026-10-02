@@ -6,33 +6,19 @@
   <meta name="theme-color" content="#fff4d6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="案内・おはなし">
+  <meta name="apple-mobile-web-app-title" content="だっだぁー">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.svg">
-  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="stylesheet" href="./style.css">
-  <title>案内サイネージ / おはなし絵本</title>
+  <title>おはなし絵本 🐸</title>
 </head>
 <body>
   <main id="app">
     <section id="menu" class="menu-screen">
       <div class="menu-card">
-        <p class="eyebrow">案内・おはなし</p>
-
-        <button id="stationBtn" class="mode-button mode-main" type="button">
-          <span class="mode-title">案内用サイネージ</span>
-          <span class="mode-note">駅IC案内</span>
-        </button>
-
-        <button id="folderBtn" class="mode-button mode-folder" type="button">
-          フォルダを選択
-        </button>
-        <input id="folderInput" type="file" webkitdirectory multiple hidden>
-
-        <button id="storyBtn" class="mode-button mode-story" type="button">
-          おはなし絵本🐸
-        </button>
-
+        <h1>おはなし絵本 🐸</h1>
+        <div id="contentList" class="content-list"></div>
         <fieldset class="timing-box">
           <legend>各画面の表示時間</legend>
           <label><input type="radio" name="timing" value="5000"> 5秒</label>
@@ -40,6 +26,8 @@
           <label><input type="radio" name="timing" value="speech"> 読み上げ終わるまで</label>
         </fieldset>
 
+        <div class="folder-entry"><button id="folderBtn" class="mode-button mode-folder" type="button">フォルダから読み込む</button></div>
+        <input id="folderInput" type="file" webkitdirectory multiple hidden>
         <p id="menuStatus" class="menu-status">最初のタップを音声開始のきっかけにします。</p>
       </div>
     </section>
@@ -64,3 +52,4 @@
   <script src="./app.js" defer></script>
 </body>
 </html>
+

@@ -1,38 +1,37 @@
-const CACHE_NAME = "ehon-signage-v10";
-const APP_SHELL = [
-  "./", "./index.html", "./style.css", "./app.js", "./manifest.webmanifest",
-  "./data/station.json", "./data/dadada.json",
-  "./icons/icon.svg", "./icons/apple-touch-icon.svg", "./icons/maskable.svg",
-  "./images/station/ic-staff.png", "./images/station/ic-guide-01.png", "./images/station/ic-guide-02.png",
-  "./images/dadada/01.jpg"
-];
+const CACHE_PREFIX = "ehon-pwa-";
+const CACHE_NAME = CACHE_PREFIX + "v1";
+const SHELL = ["./", "./index.html", "./app.js", "./style.css", "./manifest.webmanifest", "./catalog.json", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png"];
 self.addEventListener("install", event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(APP_SHELL);
-    // 内蔵絵本に追加したページも初回インストールで保存する。
-    for (const path of ["./data/station.json", "./data/dadada.json"]) {
-      const response = await cache.match(path);
-      const data = await response.json();
-      const pages = data.pages || data;
-      const images = pages.map(page => page.image).filter(Boolean);
-      await cache.addAll([...new Set(images)]);
-    }
-  })());
-  self.skipWaiting();
+ event.waitUntil((async () => {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.addAll(SHELL);
+  const catalog = await (await cache.match("./catalog.json")).json();
+  for (const item of catalog) {
+   if (!item.data) continue;
+   await cache.add(item.data);
+   const data = await (await cache.match(item.data)).json();
+   await cache.addAll([...new Set((data.pages || data).map(p => p.image).filter(Boolean))]);
+  }
+  await self.skipWaiting();
+ })());
 });
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))));
-  self.clients.claim();
+ event.waitUntil((async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map(k => caches.delete(k)));
+  await self.clients.claim();
+ })());
 });
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-      return response;
-    }).catch(() => caches.match(event.request).then(r => r || caches.match("./index.html")))
-  );
+ if (event.request.method !== "GET" || !event.request.url.startsWith(self.registration.scope)) return;
+ event.respondWith((async () => {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(event.request);
+  if (cached) return cached;
+  try { return await fetch(event.request); }
+  catch (error) {
+   if (event.request.mode === "navigate") return (await cache.match("./index.html")) || Response.error();
+   return Response.error();
+  }
+ })());
 });
-

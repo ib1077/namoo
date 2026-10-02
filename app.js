@@ -1,9 +1,6 @@
 "use strict";
 
-const BUILTIN = {
-  station: "./data/station.json",
-  story: "./data/dadada.json"
-};
+const APP_MODE = "story";
 
 const SETTINGS = {
   language: "ja-JP",
@@ -17,8 +14,7 @@ const SETTINGS = {
 const ui = {
   menu: document.querySelector("#menu"),
   viewer: document.querySelector("#viewer"),
-  stationBtn: document.querySelector("#stationBtn"),
-  storyBtn: document.querySelector("#storyBtn"),
+  contentList: document.querySelector("#contentList"),
   folderBtn: document.querySelector("#folderBtn"),
   folderInput: document.querySelector("#folderInput"),
   menuStatus: document.querySelector("#menuStatus"),
@@ -277,7 +273,7 @@ async function requestWakeLock() {
   } catch (_) {}
 }
 
-async function startViewer(newPages, mode = "story") {
+async function startViewer(newPages, mode = APP_MODE) {
   if (!newPages.length) throw new Error("表示するページがありません");
   cancelPage();
   const token = runId;
@@ -301,19 +297,34 @@ function stopViewer() {
   ui.menuStatus.textContent = "モードを選んでください。";
 }
 
-async function openBuiltin(kind) {
+async function openBuiltin(url) {
   primeSpeechFromUserGesture();
   try {
     ui.menuStatus.textContent = "読み込み中…";
-    const newPages = await loadJson(BUILTIN[kind]);
-    await startViewer(newPages, kind);
+    const newPages = await loadJson(url);
+    await startViewer(newPages, APP_MODE);
   } catch (e) {
     ui.menuStatus.textContent = e.message;
   }
 }
 
-ui.stationBtn.addEventListener("click", () => openBuiltin("station"));
-ui.storyBtn.addEventListener("click", () => openBuiltin("story"));
+async function loadCatalog() {
+  try {
+    const response = await fetch("./catalog.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error("一覧を読み込めません");
+    const items = await response.json();
+    for (const item of items) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "mode-button content-button";
+      button.textContent = item.title + (item.data ? "" : "（準備中）");
+      button.disabled = !item.data;
+      if (item.data) button.addEventListener("click", () => openBuiltin(item.data));
+      ui.contentList.appendChild(button);
+    }
+  } catch (error) { ui.menuStatus.textContent = error.message; }
+}
+loadCatalog();
 ui.folderBtn.addEventListener("click", () => {
   primeSpeechFromUserGesture();
   ui.folderInput.click();

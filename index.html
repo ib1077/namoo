@@ -16,6 +16,7 @@
 <body>
   <main id="app">
     <section id="menu" class="menu-screen">
+      <div class="update-tools"><span id="appVersion"></span><button id="updateBtn" type="button">更新して再起動</button></div>
       <div class="menu-card">
         <h1>おはなし絵本 🐸</h1>
         <div id="contentList" class="content-list"></div>
@@ -29,6 +30,7 @@
         <div class="folder-entry"><button id="folderBtn" class="mode-button mode-folder" type="button">フォルダから読み込む</button></div>
         <input id="folderInput" type="file" webkitdirectory multiple hidden>
         <p id="menuStatus" class="menu-status">最初のタップを音声開始のきっかけにします。</p>
+        <p id="updateStatus" class="menu-status" role="status" aria-live="polite">オフライン保存を確認しています…</p>
       </div>
     </section>
 
@@ -49,7 +51,9 @@
     </section>
   </main>
 
+  <script src="./version.js" defer></script>
   <script src="./app.js" defer></script>
+  <script src="./update.js" defer></script>
 </body>
 </html>
 

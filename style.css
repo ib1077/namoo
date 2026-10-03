@@ -91,3 +91,7 @@ h1 { font-size: clamp(1.5rem, 5vw, 2rem); margin: 0 0 20px; }
 .mode-folder { min-height:48px; margin-top:12px; }
 .timing-box { margin-top:16px; }
 .menu-screen { background:#f4f1e6; }
+.menu-screen { position:relative; padding-top:max(70px, env(safe-area-inset-top)); }
+.update-tools { position:absolute; top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right)); display:flex; align-items:center; gap:8px; font-size:12px; color:#55634f; }
+.update-tools button { font-size:12px; padding:7px 10px; border:1px solid #bbc3b7; border-radius:8px; background:#fafbf8; color:#43513e; cursor:pointer; }
+.update-tools button:disabled { opacity:.5; cursor:default; }
